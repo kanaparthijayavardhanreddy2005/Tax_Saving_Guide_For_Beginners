@@ -12,7 +12,8 @@ Validates:
 import unittest
 import json
 import os
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 from tax_engine import TaxCalculator
 from recommendation_engine import evaluate_recommendations
 from explainable_ai import generate_explanation, explain_all_recommendations
@@ -173,6 +174,30 @@ class TestRAGAndAntiHallucination(unittest.TestCase):
         self.assertNotIn("₹31,200", answer)
         self.assertIn(result["retrieved_chunks"][0], answer)
 
+    def test_gemini_uses_documented_model_by_default(self):
+        response = SimpleNamespace(text="A grounded Gemini response.")
+        client = SimpleNamespace(models=SimpleNamespace(generate_content=Mock(return_value=response)))
+        config_factory = Mock()
+
+        with (
+            patch.dict(os.environ, {"GEMINI_MODEL": ""}),
+            patch.object(ai_assistant, "_get_gemini_client", return_value=client),
+            patch.object(ai_assistant, "GENAI_AVAILABLE", True),
+            patch.object(
+                ai_assistant,
+                "types",
+                SimpleNamespace(GenerateContentConfig=config_factory),
+                create=True
+            ),
+        ):
+            result = ai_assistant.ask_taxwise_ai("Explain Section 80C")
+
+        self.assertEqual(result["answer"], "A grounded Gemini response.")
+        self.assertEqual(
+            client.models.generate_content.call_args.kwargs["model"],
+            "gemini-3.8-flash"
+        )
+
 
 class TestAPIEndpoints(unittest.TestCase):
     def setUp(self):
@@ -207,6 +232,16 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.get_json()
         self.assertTrue(len(data["documents"]) > 4)
+
+    def test_health_reports_gemini_configuration_without_exposing_key(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+            with patch.object(ai_assistant, "GENAI_AVAILABLE", True):
+                resp = self.client.get("/api/health")
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["gemini_configured"])
+        self.assertNotIn("test-key", resp.get_data(as_text=True))
 
     def test_static_assets_are_served_from_public_directory(self):
         resp = self.client.get("/static/css/style.css")

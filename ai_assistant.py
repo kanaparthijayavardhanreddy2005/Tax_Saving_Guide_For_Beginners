@@ -18,10 +18,13 @@ Mandatory Features:
 - Structured JSON response containing answer, sources, confidence, and disclaimer.
 """
 
+import logging
 import os
 import re
 from typing import Dict, Any, Optional, List
 from rag_engine import query_rag_knowledge, OFFICIAL_DISCLAIMER
+
+logger = logging.getLogger(__name__)
 
 try:
     from google import genai
@@ -37,7 +40,8 @@ def _get_gemini_client():
         return None
     try:
         return genai.Client(api_key=api_key)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Unable to initialize Gemini client (%s)", type(exc).__name__)
         return None
 
 
@@ -179,8 +183,8 @@ def ask_taxwise_ai(
                 f"Provide your beginner-friendly, grounded response now:"
             )
 
-            primary_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-            candidate_models = [primary_model, "gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"]
+            primary_model = os.getenv("GEMINI_MODEL", "").strip() or "gemini-3.8-flash"
+            candidate_models = [primary_model, "gemini-3.8-flash", "gemini-3.5-flash-lite"]
             seen = set()
             models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
 
@@ -198,7 +202,12 @@ def ask_taxwise_ai(
                     )
                     if response and response.text:
                         break
-                except Exception:
+                except Exception as exc:
+                    logger.warning(
+                        "Gemini generation failed for model %s (%s)",
+                        model_name,
+                        type(exc).__name__
+                    )
                     continue
 
             if response and response.text:
@@ -208,9 +217,9 @@ def ask_taxwise_ai(
                     "confidence": "high",
                     "disclaimer": OFFICIAL_DISCLAIMER
                 }
-        except Exception:
+        except Exception as exc:
             # Fall back seamlessly to local deterministic RAG formatter
-            pass
+            logger.warning("Gemini response generation failed (%s)", type(exc).__name__)
 
     # Deterministic Grounded Fallback
     fallback_answer = format_grounded_fallback_answer(

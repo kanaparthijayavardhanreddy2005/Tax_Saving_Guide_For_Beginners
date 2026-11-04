@@ -461,7 +461,10 @@ def health():
         "service": "TaxWise AI",
         "version": "2.0.0",
         "rag_status": "active",
-        "gemini_sdk_available": ai_assistant.GENAI_AVAILABLE
+        "gemini_sdk_available": ai_assistant.GENAI_AVAILABLE,
+        "gemini_configured": bool(
+            ai_assistant.GENAI_AVAILABLE and os.getenv("GEMINI_API_KEY", "").strip()
+        )
     })
 
 

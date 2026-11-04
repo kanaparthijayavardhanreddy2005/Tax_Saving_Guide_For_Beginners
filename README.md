@@ -134,7 +134,7 @@ Vercel detects the Flask application in [`app.py`](./app.py) and serves files un
 1. Push this project to a GitHub repository, then choose **Add New → Project** in Vercel and import the repository. Keep the Root Directory as `.` and use the detected Python/Flask settings.
 2. In Vercel **Project Settings → Environment Variables**, set `SECRET_KEY` (generate a unique value with `python -c "import secrets; print(secrets.token_urlsafe(48))"`), `ADMIN_API_TOKEN` (a different private value), and `SESSION_COOKIE_SECURE=1`. Apply them to each environment you deploy. Vercel will not start the app without `SECRET_KEY`.
 3. Configure `DATABASE_URL` to a Supabase PostgreSQL connection string for login, profiles, chat history, and admin database features. Apply [`schema.sql`](./schema.sql) in the Supabase SQL Editor and run `python database.py` once from a trusted local environment with `DATABASE_URL` set to seed default rules. Do not commit credentials.
-4. Optionally set `GEMINI_API_KEY` and `GEMINI_MODEL` to enable Gemini responses. Without a Gemini key, the assistant uses its grounded offline response.
+4. Set `GEMINI_API_KEY` in Vercel to enable Gemini responses; `GEMINI_MODEL` is optional and defaults to `gemini-3.8-flash`. Without a Gemini key, the assistant uses its grounded offline response. Check `/api/health` and confirm `gemini_configured` is `true` to verify the deployment has the key and SDK configured.
 5. Deploy from Vercel and open the generated `.vercel.app` URL. Future pushes to the connected production branch create new deployments.
 
 Vercel currently uses Python 3.12 as specified by [`.python-version`](./.python-version). Local Flask continues to serve the same `/static/...` asset URLs from `public/static`.
